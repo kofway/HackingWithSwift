@@ -2,129 +2,130 @@
 //  ViewController.swift
 //  Project31
 //
-//  Created by Hudzilla on 18/09/2015.
-//  Copyright © 2015 Paul Hudson. All rights reserved.
+//  Created by TwoStraws on 23/08/2016.
+//  Copyright © 2016 Paul Hudson. All rights reserved.
 //
 
 import UIKit
+import WebKit
 
-class ViewController: UIViewController, UIWebViewDelegate, UITextFieldDelegate, UIGestureRecognizerDelegate {
-	@IBOutlet weak var addressBar: UITextField!
-	@IBOutlet weak var stackView: UIStackView!
+class ViewController: UIViewController, WKNavigationDelegate, UITextFieldDelegate, UIGestureRecognizerDelegate {
+    @IBOutlet var addressBar: UITextField!
+    @IBOutlet var stackView: UIStackView!
 
-	weak var activeWebView: UIWebView?
+    weak var activeWebView: WKWebView?
 
-	override func viewDidLoad() {
-		super.viewDidLoad()
+    override func viewDidLoad() {
+        super.viewDidLoad()
 
-		setDefaultTitle()
+        setDefaultTitle()
 
-		let add = UIBarButtonItem(barButtonSystemItem: .Add, target: self, action: "addWebView")
-		let delete = UIBarButtonItem(barButtonSystemItem: .Trash, target: self, action: "deleteWebView")
-		navigationItem.rightBarButtonItems = [delete, add]
-	}
+        let add = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addWebView))
+        let delete = UIBarButtonItem(barButtonSystemItem: .trash, target: self, action: #selector(deleteWebView))
+        navigationItem.rightBarButtonItems = [delete, add]
+    }
 
-	func setDefaultTitle() {
-		title = "Multibrowser"
-	}
+    func setDefaultTitle() {
+        title = "Multibrowser"
+    }
 
-	func addWebView() {
-		let webView = UIWebView()
-		webView.delegate = self
+    @objc func addWebView() {
+        let webView = WKWebView()
+        webView.navigationDelegate = self
 
-		stackView.addArrangedSubview(webView)
+        stackView.addArrangedSubview(webView)
 
-		let url = NSURL(string: "https://www.hackingwithswift.com")!
-		webView.loadRequest(NSURLRequest(URL: url))
+        let url = URL(string: "https://www.hackingwithswift.com")!
+        webView.load(URLRequest(url: url))
 
-		webView.layer.borderColor = UIColor.blueColor().CGColor
-		selectWebView(webView)
+        webView.layer.borderColor = UIColor.blue.cgColor
+        selectWebView(webView)
 
-		let recognizer = UITapGestureRecognizer(target: self, action: "webViewTapped:")
-		recognizer.delegate = self
-		webView.addGestureRecognizer(recognizer)
-	}
+        let recognizer = UITapGestureRecognizer(target: self, action: #selector(webViewTapped))
+        recognizer.delegate = self
+        webView.addGestureRecognizer(recognizer)
+    }
 
-	func selectWebView(webView: UIWebView) {
-		for view in stackView.arrangedSubviews {
-			view.layer.borderWidth = 0
-		}
+    @objc func deleteWebView() {
+        // safely unwrap our webview
+        if let webView = activeWebView {
+            if let index = stackView.arrangedSubviews.index(of: webView) {
+                // we found the current webview in the stack view! Remove it from the stack view
+                stackView.removeArrangedSubview(webView)
 
-		activeWebView = webView
-		webView.layer.borderWidth = 3
+                // now remove it from the view hierarchy – this is important!
+                webView.removeFromSuperview()
 
-		updateUIUsingWebView(webView)
-	}
+                if stackView.arrangedSubviews.count == 0 {
+                    // go back to our default UI
+                    setDefaultTitle()
+                } else {
+                    // convert the Index value into an integer
+                    var currentIndex = Int(index)
 
-	func webViewTapped(recognizer: UITapGestureRecognizer) {
-		if let selectedWebView = recognizer.view as? UIWebView {
-			selectWebView(selectedWebView)
-		}
-	}
+                    // if that was the last web view in the stack, go back one
+                    if currentIndex == stackView.arrangedSubviews.count {
+                        currentIndex = stackView.arrangedSubviews.count - 1
+                    }
 
-	func gestureRecognizer(gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWithGestureRecognizer otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-		return true
-	}
+                    // find the web view at the new index and select it
+                    if let newSelectedWebView = stackView.arrangedSubviews[currentIndex] as? WKWebView {
+                        selectWebView(newSelectedWebView)
+                    }
+                }
+            }
+        }
+    }
 
-	func textFieldShouldReturn(textField: UITextField) -> Bool {
-		if let webView = activeWebView, address = addressBar.text {
-			if let url = NSURL(string: address) {
-				webView.loadRequest(NSURLRequest(URL: url))
-			}
-		}
+    func selectWebView(_ webView: WKWebView) {
+        for view in stackView.arrangedSubviews {
+            view.layer.borderWidth = 0
+        }
 
-		textField.resignFirstResponder()
-		return true
-	}
+        activeWebView = webView
+        webView.layer.borderWidth = 3
 
-	func deleteWebView() {
-		// safely unwrap our webview
-		if let webView = activeWebView {
-			if let index = stackView.arrangedSubviews.indexOf(webView) {
-				// we found the current webview in the stack view! Remove it from the stack view
-				stackView.removeArrangedSubview(webView)
+        updateUI(for: webView)
+    }
 
-				// now remove it from the view hierarchy – this is important!
-				webView.removeFromSuperview()
+    @objc func webViewTapped(_ recognizer: UITapGestureRecognizer) {
+        if let selectedWebView = recognizer.view as? WKWebView {
+            selectWebView(selectedWebView)
+        }
+    }
 
-				if stackView.arrangedSubviews.count == 0 {
-					// go back to our default UI
-					setDefaultTitle()
-				} else {
-					// convert the Index value into an integer
-					var currentIndex = Int(index)
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
+    }
 
-					// if that was the last web view in the stack, go back one
-					if currentIndex == stackView.arrangedSubviews.count {
-						currentIndex = stackView.arrangedSubviews.count - 1
-					}
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if let webView = activeWebView, let address = addressBar.text {
+            if let url = URL(string: address) {
+                webView.load(URLRequest(url: url))
+            }
+        }
 
-					// find the web view at the new index and select it
-					if let newSelectedWebView = stackView.arrangedSubviews[currentIndex] as? UIWebView {
-						selectWebView(newSelectedWebView)
-					}
-				}
-			}
-		}
-	}
+        textField.resignFirstResponder()
+        return true
+    }
 
-	override func traitCollectionDidChange(previousTraitCollection: UITraitCollection?) {
-		if traitCollection.horizontalSizeClass == .Compact {
-			stackView.axis = .Vertical
-		} else {
-			stackView.axis = .Horizontal
-		}
-	}
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        if traitCollection.horizontalSizeClass == .compact {
+            stackView.axis = .vertical
+        } else {
+            stackView.axis = .horizontal
+        }
+    }
 
-	func updateUIUsingWebView(webView: UIWebView) {
-		title = webView.stringByEvaluatingJavaScriptFromString("document.title")
-		addressBar.text = webView.request?.URL?.absoluteString ?? ""
-	}
+    func updateUI(for webView: WKWebView) {
+        title = webView.title
+        addressBar.text = webView.url?.absoluteString ?? ""
+    }
 
-	func webViewDidFinishLoad(webView: UIWebView) {
-		if webView == activeWebView {
-			updateUIUsingWebView(webView)
-		}
-	}
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if webView == activeWebView {
+            updateUI(for: webView)
+        }
+    }
 }
 
